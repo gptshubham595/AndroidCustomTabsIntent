@@ -1,54 +1,65 @@
 # Android Custom Tabs SSO Demo
 
-This project compares **Custom Tabs** and **WebView** for Android login flows, with the main focus on showing why **Custom Tabs are usually the better choice for SSO**.
+This project demonstrates two Android login approaches using the same local web app:
 
-It now includes:
-- a simple web login/register demo,
-- hardcoded demo users stored in JSON,
-- Android WebView bridge integration,
-- Custom Tabs launch flow,
-- session feedback inside the Android UI.
+- **WebView login** with a JavaScript bridge
+- **Custom Tabs login** with a real browser session and a **deep-link callback back into the app**
+
+The main goal is to show why **Custom Tabs are the preferred real-world choice for SSO / OAuth / browser-based auth**, while WebView is useful mainly for controlled embedded flows.
 
 ---
 
-## What this demo shows
+## What is implemented
 
-The app gives two login options:
+### Web side
+The local web app includes:
+- login screen
+- register screen
+- hardcoded demo users from JSON
+- local session storage
+- Android bridge messaging for WebView
+- Custom Tabs return-to-app flow using deep link redirect
 
-1. **Login with WebView**
-   - opens the hosted login page inside an Android `WebView`
-   - injects `AndroidBridge`
-   - receives JavaScript messages from the page
-   - shows Android toasts when bridge messages arrive
+### Android side
+The Android app includes:
+- a home screen with **Login with WebView** and **Login with Custom Tabs**
+- a WebView with `AndroidBridge`
+- toast feedback when bridge messages are received
+- `CustomTabsPerformanceManager` for browser warmup and preloading
+- deep-link handling through `androidcustomtabs://login`
+- session UI update after deep-link return from browser
 
-2. **Login with Custom Tabs**
-   - opens the same login page in the browser via Custom Tabs
-   - reuses real browser session/cookies
-   - is closer to how real SSO / OAuth / enterprise login should work
+---
 
-The key point of this sample:
+## Why this demo matters
 
-> If your login is really a browser login, especially SSO, prefer **Custom Tabs** over **WebView**.
+In real SSO use cases, after opening a login page in Custom Tabs, you no longer have direct JavaScript/native control the way you do in WebView.
+
+That is normal.
+
+The correct production pattern is:
+
+1. App opens auth page in **Custom Tabs**
+2. User completes login in browser context
+3. Web app or auth server redirects to app callback URL
+4. Android app receives the callback and regains control
+
+This project now demonstrates exactly that local callback model.
 
 ---
 
 ## Project structure
 
-### Android app
-
-Important files:
-
+### Android files
 - `app/src/main/java/com/shubham/androidcustomtabs/BrowserDemoApp.kt`
 - `app/src/main/java/com/shubham/androidcustomtabs/HomeScreen.kt`
 - `app/src/main/java/com/shubham/androidcustomtabs/WebViewScreen.kt`
+- `app/src/main/java/com/shubham/androidcustomtabs/MainActivity.kt`
 - `app/src/main/java/com/shubham/androidcustomtabs/CustomTabsPerformanceManager.kt`
 - `app/src/main/java/com/shubham/androidcustomtabs/Helper.kt`
 - `app/src/main/AndroidManifest.xml`
 
-### Web app
-
-Important files:
-
+### Web files
 - `web/server.js`
 - `web/public/index.html`
 - `web/public/assets/script.js`
@@ -59,104 +70,108 @@ Important files:
 
 ## Demo credentials
 
-Default users are stored in:
-
+Stored in:
 - `web/public/users.json`
 
-Current demo credentials:
-
+Default users:
 - `demo@sso.com` / `password123`
 - `admin@sso.com` / `admin123`
 
-You can also register a new user from the demo page. New users are stored in browser local storage for the demo session.
+You can also register a new user from the page. That extra user is stored in browser local storage for demo purposes.
 
 ---
 
-## How the web login works
+## Web flow details
 
-The web page has two modes:
-
+The web page supports two modes:
 - **Login**
 - **Register**
 
-### Login flow
-- loads default users from `users.json`
-- validates entered email/password
-- creates a demo session in local storage
-- sends a message to Android through `AndroidBridge.postMessage(...)` when inside WebView
+### When opened inside WebView
+The page:
+- uses `AndroidBridge.postMessage(...)`
+- sends events like `pageReady`, `ping`, `loginSuccess`, `loginFailed`, `logout`
+- can close the WebView via `AndroidBridge.closeWebView()`
 
-### Register flow
-- accepts name, email, password
-- adds the user to in-browser storage for demo use
-- creates a session immediately after registration
+### When opened inside Custom Tabs
+The page:
+- does **not** rely on direct Android bridge control
+- stores or reads a callback URL
+- redirects to Android after login success using a deep link
 
-### Android bridge messages from web
+Example callback:
 
-The page sends structured JSON messages like:
-
-- `pageReady`
-- `ping`
-- `loginSuccess`
-- `loginFailed`
-- `logout`
+```text
+androidcustomtabs://login?email=demo@sso.com&name=Demo%20User&source=login&transport=deep-link
+```
 
 ---
 
-## How Android handles bridge messages
+## Android bridge behavior in WebView
 
 Inside `WebViewScreen.kt`:
 
 - `AndroidBridge` is injected with `addJavascriptInterface(..., "AndroidBridge")`
-- JavaScript calls `AndroidBridge.postMessage(message)`
-- Android parses the event payload
-- Android shows a toast like:
+- JavaScript sends JSON payloads using `postMessage(...)`
+- Android parses the event
+- Android shows a toast such as:
 
 ```text
 Android bridge received: loginSuccess
 ```
 
-Additional toasts are shown for important actions like successful login/logout.
+Additional toasts are shown for login success/logout as well.
 
 ---
 
-## Why Custom Tabs are important for SSO
+## Custom Tabs deep-link callback setup
 
-Custom Tabs are better for SSO because they:
+The Android app is configured to receive:
 
-- reuse browser cookies,
-- reuse existing logged-in browser accounts,
-- work better with redirects and enterprise identity providers,
-- reduce the amount of auth logic your app owns,
-- align better with OAuth/browser-based login expectations.
+```text
+androidcustomtabs://login
+```
 
-This makes them a much stronger fit for:
+This is declared in `AndroidManifest.xml` with:
+- `scheme = androidcustomtabs`
+- `host = login`
+- `launchMode = singleTask`
 
-- Google / Microsoft / Okta login
-- enterprise SSO
-- OAuth authorization pages
-- external identity provider flows
+### Android handling
+
+- `MainActivity` stores the latest incoming intent in `deepLinkIntent`
+- `BrowserDemoApp` watches that intent
+- when the app receives a matching callback URI, it extracts session info and updates the UI
+- a toast confirms the browser returned to the app
 
 ---
 
-## Deep link setup in Android
+## How Custom Tabs login works in this demo
 
-The Android app is configured with this scheme:
+When you tap **Login with Custom Tabs**:
 
-- `androidcustomtabs://login`
+1. Android opens the local login page in Custom Tabs
+2. The login URL includes a callback parameter:
 
-This is declared in `AndroidManifest.xml` so the app can later be extended to receive browser redirect results from Custom Tabs/browser login flows.
+```text
+http://10.0.2.2:3000/?callbackUrl=androidcustomtabs%3A%2F%2Flogin
+```
 
-Current manifest behavior:
+3. After successful login, the web page redirects to:
 
-- launcher activity remains `MainActivity`
-- deep link host is `login`
-- launch mode is `singleTask`
+```text
+androidcustomtabs://login?...params...
+```
+
+4. Android receives that deep link and updates the session card
+
+This is the core pattern used in real OAuth / SSO login flows, except production systems usually return an auth code instead of raw demo user info.
 
 ---
 
 ## Running the web server
 
-Open a terminal and run:
+Open a terminal:
 
 ```bash
 cd /Users/shukugup/personal/AndroidCustomTabs/web
@@ -170,89 +185,98 @@ Expected output:
 Backend running at http://localhost:3000
 ```
 
-> Use `npm start`, not `npm run dev`, unless you install `nodemon` yourself.
+> Use `npm start`. `npm run dev` requires `nodemon`, which is not installed by default.
 
 ---
 
 ## Running the Android app
 
-1. Start the web server.
-2. Open the Android project in Android Studio.
-3. Run the app on emulator or device.
+1. Start the web server
+2. Open the project in Android Studio
+3. Run the app on emulator or device
 
-### Emulator URL
+### Android emulator URL
 
-Use this base URL inside the app:
+Use this inside the app:
 
 ```text
 http://10.0.2.2:3000
 ```
 
-Because:
-- `localhost` inside Android emulator points to the emulator itself
-- `10.0.2.2` points to your host machine
+Reason:
+- `localhost` inside emulator points to emulator itself
+- `10.0.2.2` maps to your host machine
 
-### Physical device
+### Physical device URL
 
-For a real phone, use your computer's local network IP, for example:
+Use your laptop IP, for example:
 
 ```text
 http://192.168.1.5:3000
 ```
 
-Make sure both devices are on the same network.
+Make sure phone and laptop are on the same network.
 
 ---
 
-## Suggested test flow
+## Recommended test flow
 
-### WebView test
-1. Start the app
+### Test 1: WebView path
+1. Launch app
 2. Keep URL as `http://10.0.2.2:3000`
 3. Tap **Login with WebView**
-4. Login using `demo@sso.com / password123`
-5. Observe:
-   - bridge toast on Android
-   - login success toast
-   - session card update in app UI
+4. Sign in with `demo@sso.com / password123`
+5. Confirm:
+   - bridge message toast appears
+   - login success toast appears
+   - app session card updates immediately
 
-### Custom Tabs test
-1. Return to home screen
+### Test 2: Custom Tabs deep-link path
+1. Return to app home
 2. Tap **Login with Custom Tabs**
-3. Sign in using the same page in browser UI
-4. Observe browser-based login behavior
-5. Compare user experience with WebView
+3. Sign in with `demo@sso.com / password123`
+4. Observe browser page redirect back to app
+5. Confirm:
+   - Android app opens again automatically
+   - a toast says Custom Tabs returned to the app
+   - session card updates from deep-link payload
 
 ---
 
 ## Build verification
 
-Android compile check used in this project:
+Compile check:
 
 ```bash
 cd /Users/shukugup/personal/AndroidCustomTabs
 ./gradlew :app:compileDebugKotlin
 ```
 
-At the moment, compilation succeeds.
+The project currently compiles successfully.
 
 ---
 
-## Notes
+## Important real-world note
 
-- This project is a demo, not a production auth implementation.
-- The web login is intentionally simple and local.
-- The Custom Tabs path is the recommended conceptual direction for real SSO.
-- The WebView path exists to compare behavior and demonstrate JavaScript bridge handling.
+This demo returns user details directly in the deep link for simplicity.
+
+In a real production auth setup, you usually should **not** return raw user/session data like this.
+Instead, the normal pattern is:
+
+1. browser login succeeds
+2. auth server redirects back with an **authorization code** or secure token reference
+3. app exchanges that code securely with backend
+4. app fetches real session/user state from server
+
+So this repo demonstrates the **shape of the flow**, not a production security design.
 
 ---
 
 ## Future improvements
 
-Possible next steps:
-
-- complete redirect-based Custom Tabs login return flow
-- add real OAuth/SSO provider simulation
-- persist Android-side session more formally
-- add logout redirect handling for browser session
-- improve Custom Tabs callback/deep link round-trip metrics
+Potential next steps:
+- replace demo payload with auth-code style callback
+- add logout callback for browser session
+- support Android App Links in addition to custom scheme deep links
+- add real OAuth provider mock
+- improve docs/screenshots for step-by-step testing

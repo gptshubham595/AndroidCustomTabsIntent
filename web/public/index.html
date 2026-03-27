@@ -21,6 +21,17 @@
         <p>Email: <code>demo@sso.com</code> · Password: <code>password123</code></p>
       </div>
 
+      <div class="bridge-card">
+        <h3>Return target</h3>
+        <p class="bridge-note">
+          This page can return to Android using a deep link callback after login success.
+        </p>
+        <div class="field">
+          <label for="callback-url">App callback URL</label>
+          <input id="callback-url" type="text" value="androidcustomtabs://login" />
+        </div>
+      </div>
+
       <div class="mode-switch" role="tablist" aria-label="Authentication mode">
         <button id="login-tab" class="mode-button active" type="button">Login</button>
         <button id="register-tab" class="mode-button" type="button">Register</button>
@@ -53,6 +64,7 @@
         <p id="session-email">-</p>
         <div class="session-actions">
           <button id="send-session" class="secondary-action" type="button">Send session to Android</button>
+          <button id="return-to-app" class="secondary-action" type="button">Return to app</button>
           <button id="logout" class="ghost-action" type="button">Logout</button>
         </div>
       </section>
@@ -65,7 +77,7 @@
         </div>
         <p class="bridge-note">
           In WebView, JavaScript talks to Android through <code>AndroidBridge</code>. In Custom Tabs,
-          the browser keeps the web session and can deep-link back to the app later.
+          success should redirect to the app callback URL instead of relying on direct JS control.
         </p>
       </section>
     </section>

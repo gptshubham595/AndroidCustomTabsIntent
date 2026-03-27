@@ -2,7 +2,6 @@ package com.shubham.androidcustomtabs
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.browser.customtabs.CustomTabColorSchemeParams
@@ -33,6 +32,7 @@ data class DemoSession(
 @Composable
 fun BrowserDemoApp() {
     val context = LocalContext.current
+    val activity = context as? MainActivity
     val keyboardController = LocalSoftwareKeyboardController.current
 
     var baseUrl by remember { mutableStateOf(DEFAULT_URL) }
@@ -57,9 +57,11 @@ fun BrowserDemoApp() {
         onDispose { customTabsManager.unbind() }
     }
 
-    LaunchedEffect(Unit) {
-        extractSessionFromUri((context as? MainActivity)?.intent?.data)?.let {
+    LaunchedEffect(activity?.deepLinkIntent) {
+        extractSessionFromUri(activity?.deepLinkIntent?.data)?.let {
             currentSession = it
+            errorMessage = ""
+            context.toast("Custom Tabs returned to app for ${it.email}")
         }
     }
 
@@ -82,7 +84,7 @@ fun BrowserDemoApp() {
                 val result = openWithCustomTabs(
                     keyboardController = keyboardController,
                     context = context,
-                    url = buildLoginDemoUrl(baseUrl),
+                    url = buildCustomTabsLoginUrl(baseUrl),
                     performanceManager = customTabsManager,
                     launcher = customTabsLauncher
                 )
@@ -103,6 +105,11 @@ fun BrowserDemoApp() {
             onClearSession = { currentSession = null }
         )
     }
+}
+
+fun buildCustomTabsLoginUrl(input: String): String {
+    val base = buildLoginDemoUrl(input)
+    return "${base}?callbackUrl=androidcustomtabs%3A%2F%2Flogin"
 }
 
 fun openWithCustomTabs(
@@ -155,7 +162,7 @@ fun openWithCustomTabs(
         keyboardController?.hide()
 
         context.toast(
-            "Launching SSO demo with Custom Tabs. Shared browser cookies make this the preferred real-world sign-in path."
+            "Launching SSO demo with Custom Tabs. After success, the web page will deep-link back into the app."
         )
         null
     } catch (e: Exception) {

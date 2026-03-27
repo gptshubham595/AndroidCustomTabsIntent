@@ -7,6 +7,7 @@ const state = {
 const storageKeys = {
   users: 'demo-users',
   session: 'demo-session',
+  callbackUrl: 'demo-callback-url',
 };
 
 const elements = {
@@ -19,10 +20,12 @@ const elements = {
   name: document.getElementById('name'),
   email: document.getElementById('email'),
   password: document.getElementById('password'),
+  callbackUrl: document.getElementById('callback-url'),
   sessionCard: document.getElementById('session-card'),
   sessionName: document.getElementById('session-name'),
   sessionEmail: document.getElementById('session-email'),
   sendSession: document.getElementById('send-session'),
+  returnToApp: document.getElementById('return-to-app'),
   logout: document.getElementById('logout'),
   pingNative: document.getElementById('ping-native'),
   closeWebView: document.getElementById('close-webview'),
@@ -31,6 +34,7 @@ const elements = {
 init();
 
 async function init() {
+  hydrateCallbackUrl();
   await hydrateUsers();
   restoreSession();
   bindEvents();
@@ -39,6 +43,14 @@ async function init() {
     availableUsers: state.users.map(({ password, ...user }) => user),
     hasSession: Boolean(state.session),
   });
+}
+
+function hydrateCallbackUrl() {
+  const callbackUrlFromQuery = new URLSearchParams(window.location.search).get('callbackUrl');
+  const storedCallback = localStorage.getItem(storageKeys.callbackUrl);
+  const chosen = callbackUrlFromQuery || storedCallback || 'androidcustomtabs://login';
+  elements.callbackUrl.value = chosen;
+  localStorage.setItem(storageKeys.callbackUrl, chosen);
 }
 
 async function hydrateUsers() {
@@ -64,12 +76,14 @@ function bindEvents() {
   elements.registerTab.addEventListener('click', () => switchMode('register'));
   elements.authForm.addEventListener('submit', onSubmit);
   elements.sendSession.addEventListener('click', () => pushSessionToAndroid('manualShare'));
+  elements.returnToApp.addEventListener('click', () => redirectToApp('manualRedirect'));
   elements.logout.addEventListener('click', logout);
   elements.pingNative.addEventListener('click', () => {
     notifyBridge('ping', { message: 'Ping from web page' });
     setStatus('Pinged Android bridge from JavaScript.');
   });
   elements.closeWebView.addEventListener('click', () => closeNativeWebView());
+  elements.callbackUrl.addEventListener('change', persistCallbackUrl);
 }
 
 function switchMode(mode) {
@@ -153,6 +167,11 @@ function establishSession(user, source) {
   localStorage.setItem(storageKeys.session, JSON.stringify(state.session));
   render();
   pushSessionToAndroid(source);
+
+  if (!isAndroidBridgeAvailable()) {
+    setStatus('Login successful. Redirecting back to the Android app…');
+    setTimeout(() => redirectToApp(source), 700);
+  }
 }
 
 function pushSessionToAndroid(source) {
@@ -163,6 +182,21 @@ function pushSessionToAndroid(source) {
     source,
     transport: isAndroidBridgeAvailable() ? 'webview-bridge' : 'browser-session',
   });
+}
+
+function redirectToApp(source) {
+  if (!state.session) {
+    setStatus('No active session to return to app.');
+    return;
+  }
+
+  const callbackUrl = getCallbackUrl();
+  const target = new URL(callbackUrl);
+  target.searchParams.set('email', state.session.email);
+  target.searchParams.set('name', state.session.name);
+  target.searchParams.set('source', source || state.session.source || 'custom-tabs');
+  target.searchParams.set('transport', 'deep-link');
+  window.location.href = target.toString();
 }
 
 function logout() {
@@ -181,6 +215,14 @@ function restoreSession() {
 
 function persistUsers() {
   localStorage.setItem(storageKeys.users, JSON.stringify(state.users));
+}
+
+function persistCallbackUrl() {
+  localStorage.setItem(storageKeys.callbackUrl, getCallbackUrl());
+}
+
+function getCallbackUrl() {
+  return (elements.callbackUrl.value || 'androidcustomtabs://login').trim();
 }
 
 function setStatus(message) {
