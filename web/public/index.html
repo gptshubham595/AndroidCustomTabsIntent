@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SSO Login Demo</title>
+  <link rel="stylesheet" href="assets/style.css" />
+</head>
+<body class="auth-body">
+  <main class="auth-shell">
+    <section class="auth-card">
+      <p class="eyebrow">CUSTOM TABS SSO DEMO</p>
+      <h1>Unified Login Experience</h1>
+      <p class="auth-copy">
+        Use this simple demo to compare a WebView-hosted sign-in against a browser-based
+        Custom Tabs sign-in flow with shared browser cookies.
+      </p>
+
+      <div class="demo-credentials">
+        <strong>Demo credentials</strong>
+        <p>Email: <code>demo@sso.com</code> · Password: <code>password123</code></p>
+      </div>
+
+      <div class="mode-switch" role="tablist" aria-label="Authentication mode">
+        <button id="login-tab" class="mode-button active" type="button">Login</button>
+        <button id="register-tab" class="mode-button" type="button">Register</button>
+      </div>
+
+      <form id="auth-form" class="auth-form">
+        <div id="name-group" class="field hidden">
+          <label for="name">Full name</label>
+          <input id="name" name="name" type="text" placeholder="Demo User" autocomplete="name" />
+        </div>
+
+        <div class="field">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" placeholder="demo@sso.com" autocomplete="email" required />
+        </div>
+
+        <div class="field">
+          <label for="password">Password</label>
+          <input id="password" name="password" type="password" placeholder="password123" autocomplete="current-password" required />
+        </div>
+
+        <button id="submit-button" class="primary-action" type="submit">Sign in</button>
+      </form>
+
+      <p id="status" class="status-banner">Waiting for action…</p>
+
+      <section id="session-card" class="session-card hidden">
+        <p class="session-label">Logged in session</p>
+        <h2 id="session-name">-</h2>
+        <p id="session-email">-</p>
+        <div class="session-actions">
+          <button id="send-session" class="secondary-action" type="button">Send session to Android</button>
+          <button id="logout" class="ghost-action" type="button">Logout</button>
+        </div>
+      </section>
+
+      <section class="bridge-card">
+        <h3>Android bridge</h3>
+        <div class="bridge-actions">
+          <button id="ping-native" class="secondary-action" type="button">Ping Native Bridge</button>
+          <button id="close-webview" class="ghost-action" type="button">Close WebView</button>
+        </div>
+        <p class="bridge-note">
+          In WebView, JavaScript talks to Android through <code>AndroidBridge</code>. In Custom Tabs,
+          the browser keeps the web session and can deep-link back to the app later.
+        </p>
+      </section>
+    </section>
+  </main>
+
+  <script src="assets/script.js"></script>
+</body>
+</html>
