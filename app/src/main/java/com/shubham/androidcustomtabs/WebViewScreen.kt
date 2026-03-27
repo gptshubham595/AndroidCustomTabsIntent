@@ -119,6 +119,7 @@ fun WebViewScreen(
             ?: "webview-bridge"
 
         statusMessage = "Bridge event: ${event ?: "unknown"}"
+        context.toast("Android bridge received: ${event ?: "unknown"}")
         if (event == "loginSuccess" && email != null && name != null) {
             onSessionUpdate(
                 DemoSession(

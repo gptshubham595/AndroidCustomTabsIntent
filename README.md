@@ -1,317 +1,258 @@
-# Android Custom Tabs vs WebView
+# Android Custom Tabs SSO Demo
 
-## Index
+This project compares **Custom Tabs** and **WebView** for Android login flows, with the main focus on showing why **Custom Tabs are usually the better choice for SSO**.
 
-1. [What This Project Demonstrates](#what-this-project-demonstrates)
-2. [Project Setup Overview](#project-setup-overview)
-3. [Why Custom Tabs Are the Center of This Demo](#why-custom-tabs-are-the-center-of-this-demo)
-4. [How Custom Tabs Work in This App](#how-custom-tabs-work-in-this-app)
-5. [SSO Login and Shared Browser State](#sso-login-and-shared-browser-state)
-6. [Prewarm, Prefetch, and Faster Launches](#prewarm-prefetch-and-faster-launches)
-7. [Metrics Captured in This Setup](#metrics-captured-in-this-setup)
-8. [Custom Tabs vs WebView: Pros and Cons](#custom-tabs-vs-webview-pros-and-cons)
-9. [Real Use Cases: When to Use What](#real-use-cases-when-to-use-what)
-10. [How to Run and Test This Demo](#how-to-run-and-test-this-demo)
-11. [Implementation Notes From This Codebase](#implementation-notes-from-this-codebase)
-12. [Conclusion](#conclusion)
+It now includes:
+- a simple web login/register demo,
+- hardcoded demo users stored in JSON,
+- Android WebView bridge integration,
+- Custom Tabs launch flow,
+- session feedback inside the Android UI.
 
-## What This Project Demonstrates
+---
 
-This sample compares two ways of opening web content on Android:
+## What this demo shows
 
-- **Custom Tabs** using a real browser process and real browser session state.
-- **WebView** using an embedded browser surface owned and configured by the app.
+The app gives two login options:
 
-The main point of this project is not that both options are equal. They are not.
+1. **Login with WebView**
+   - opens the hosted login page inside an Android `WebView`
+   - injects `AndroidBridge`
+   - receives JavaScript messages from the page
+   - shows Android toasts when bridge messages arrive
 
-This setup is intentionally designed to show why **Custom Tabs should usually be the default choice** when the goal is to open regular web content, login flows, external pages, help centers, documentation, checkout screens, and browser-trust-sensitive flows such as SSO.
+2. **Login with Custom Tabs**
+   - opens the same login page in the browser via Custom Tabs
+   - reuses real browser session/cookies
+   - is closer to how real SSO / OAuth / enterprise login should work
 
-WebView is still useful, but it should be treated as a specialized tool for cases where the app truly needs to embed and control the entire web surface.
+The key point of this sample:
 
-## Project Setup Overview
+> If your login is really a browser login, especially SSO, prefer **Custom Tabs** over **WebView**.
 
-This demo is built with:
+---
 
-- **Jetpack Compose** for the UI.
-- **androidx.browser** for Custom Tabs integration.
-- A dedicated **`CustomTabsPerformanceManager`** to handle browser binding, warmup, session creation, prefetching, and launch timing.
-- A dedicated **`WebViewScreen`** that configures WebView settings, cookies, progress callbacks, navigation timing, and paint metrics.
+## Project structure
 
-Relevant files:
+### Android app
+
+Important files:
 
 - `app/src/main/java/com/shubham/androidcustomtabs/BrowserDemoApp.kt`
-- `app/src/main/java/com/shubham/androidcustomtabs/CustomTabsPerformanceManager.kt`
-- `app/src/main/java/com/shubham/androidcustomtabs/WebViewScreen.kt`
 - `app/src/main/java/com/shubham/androidcustomtabs/HomeScreen.kt`
+- `app/src/main/java/com/shubham/androidcustomtabs/WebViewScreen.kt`
+- `app/src/main/java/com/shubham/androidcustomtabs/CustomTabsPerformanceManager.kt`
 - `app/src/main/java/com/shubham/androidcustomtabs/Helper.kt`
+- `app/src/main/AndroidManifest.xml`
 
-The home screen lets the user type a URL and open the same destination either through Custom Tabs or WebView. That makes the comparison immediate and practical.
+### Web app
 
-## Why Custom Tabs Are the Center of This Demo
+Important files:
 
-Custom Tabs deserve to be the primary path because they give you the best middle ground between native app UX and full browser trust:
+- `web/server.js`
+- `web/public/index.html`
+- `web/public/assets/script.js`
+- `web/public/assets/style.css`
+- `web/public/users.json`
 
-- They feel integrated into the app.
-- They reuse the user’s browser cookies and login state.
-- They benefit from browser security updates and hardened web behavior.
-- They support warmup and speculative loading.
-- They reduce app-side rendering and session-management work.
+---
 
-That combination is exactly why Custom Tabs are a strong fit for login, identity, payments, support content, articles, and third-party websites.
+## Demo credentials
 
-If the content is fundamentally web content and does not need full in-app DOM ownership, Custom Tabs are usually the correct answer.
+Default users are stored in:
 
-## How Custom Tabs Work in This App
+- `web/public/users.json`
 
-This app follows the right mental model for Custom Tabs:
+Current demo credentials:
 
-### 1. Bind to a browser service early
+- `demo@sso.com` / `password123`
+- `admin@sso.com` / `admin123`
 
-`CustomTabsPerformanceManager.bind()` finds a supporting browser package and binds to it. Once connected, it immediately calls:
+You can also register a new user from the demo page. New users are stored in browser local storage for the demo session.
 
-- `warmup(0L)` to start browser-side initialization.
-- `newSession(...)` to create a reusable session.
+---
 
-This is important because the performance story of Custom Tabs starts **before** the user taps the button.
+## How the web login works
 
-### 2. Reuse a session
+The web page has two modes:
 
-The session created in `CustomTabsPerformanceManager` is passed into `CustomTabsIntent.Builder(...)`. That allows the browser to connect the launch with earlier warmup and speculation work.
+- **Login**
+- **Register**
 
-### 3. Hint likely navigation in advance
+### Login flow
+- loads default users from `users.json`
+- validates entered email/password
+- creates a demo session in local storage
+- sends a message to Android through `AndroidBridge.postMessage(...)` when inside WebView
 
-Before launch, `prepareUrl(url)` calls `mayLaunchUrl(...)`.
+### Register flow
+- accepts name, email, password
+- adds the user to in-browser storage for demo use
+- creates a session immediately after registration
 
-This is the prefetch/preconnect hint. It tells the browser, "this is probably the next destination." Depending on the browser implementation, that can help with DNS, connection setup, and other speculative work.
+### Android bridge messages from web
 
-### 4. Launch the URL with browser state
+The page sends structured JSON messages like:
 
-When the user taps **Open via Custom Tabs**, the app:
+- `pageReady`
+- `ping`
+- `loginSuccess`
+- `loginFailed`
+- `logout`
 
-- normalizes the URL,
-- preps the target with `mayLaunchUrl(...)`,
-- builds the `CustomTabsIntent`,
-- launches the page with the selected browser package,
-- records launch start time for basic metrics.
+---
 
-This flow is simple, but it is exactly the kind of simplicity that makes Custom Tabs attractive in production.
+## How Android handles bridge messages
 
-## SSO Login and Shared Browser State
+Inside `WebViewScreen.kt`:
 
-This is one of the biggest reasons to prefer Custom Tabs.
+- `AndroidBridge` is injected with `addJavascriptInterface(..., "AndroidBridge")`
+- JavaScript calls `AndroidBridge.postMessage(message)`
+- Android parses the event payload
+- Android shows a toast like:
 
-With Custom Tabs, authentication flows can reuse the browser’s existing cookies and active sessions. That means:
+```text
+Android bridge received: loginSuccess
+```
 
-- the user may already be logged in,
-- enterprise identity providers work more naturally,
-- multi-step SSO flows are less fragile,
-- security posture is generally better than recreating login behavior inside app-managed WebView logic.
+Additional toasts are shown for important actions like successful login/logout.
 
-### Why this matters for OAuth and enterprise identity
+---
 
-SSO flows often involve:
+## Why Custom Tabs are important for SSO
 
-- redirects across multiple domains,
-- shared identity cookies,
-- conditional access policies,
-- MFA and browser-based trust checks,
-- external IdP pages that expect real browser behavior.
+Custom Tabs are better for SSO because they:
 
-Custom Tabs are better aligned with that world than WebView.
+- reuse browser cookies,
+- reuse existing logged-in browser accounts,
+- work better with redirects and enterprise identity providers,
+- reduce the amount of auth logic your app owns,
+- align better with OAuth/browser-based login expectations.
 
-### When WebView is the wrong choice for login
+This makes them a much stronger fit for:
 
-Avoid WebView for login when:
+- Google / Microsoft / Okta login
+- enterprise SSO
+- OAuth authorization pages
+- external identity provider flows
 
-- the provider expects system browser behavior,
-- the flow depends on shared login state,
-- the login page includes anti-embedded protections,
-- compliance or security teams prefer browser-based auth,
-- you do not want to own cookie policy and auth edge cases yourself.
+---
 
-In practice, **SSO and OAuth-style login are among the strongest arguments for Custom Tabs**.
+## Deep link setup in Android
 
-## Prewarm, Prefetch, and Faster Launches
+The Android app is configured with this scheme:
 
-This project already demonstrates the most important Custom Tabs performance techniques.
+- `androidcustomtabs://login`
 
-| Optimization | Where it appears in this project | Why it matters |
-| --- | --- | --- |
-| Browser warmup | `client.warmup(0L)` in `CustomTabsPerformanceManager` | Starts browser-side work before the actual launch |
-| Reusable session | `newSession(...)` | Connects future launches to browser speculation |
-| Likely URL hint | `mayLaunchUrl(url, null, null)` | Helps the browser preconnect or prefetch likely navigation |
-| Explicit browser package | `intent.package = performanceManager.getPackageName()` | Ensures launch goes through the warmed browser |
+This is declared in `AndroidManifest.xml` so the app can later be extended to receive browser redirect results from Custom Tabs/browser login flows.
 
-These optimizations matter because user-perceived performance is often decided by the first few hundred milliseconds.
+Current manifest behavior:
 
-The browser is already highly optimized for networking, rendering, caching, and process reuse. Custom Tabs let the app benefit from that work instead of recreating a browser stack inside the app process.
+- launcher activity remains `MainActivity`
+- deep link host is `login`
+- launch mode is `singleTask`
 
-## Metrics Captured in This Setup
+---
 
-This project measures both paths, but the metrics are intentionally different because the two technologies expose different hooks.
+## Running the web server
 
-### Custom Tabs metrics
+Open a terminal and run:
 
-`CustomTabsPerformanceManager` listens to `CustomTabsCallback` events and captures:
+```bash
+cd /Users/shukugup/personal/AndroidCustomTabs/web
+npm install
+npm start
+```
 
-- navigation start delay after launch,
-- first visible/tab shown timing,
-- full navigation finish timing.
+Expected output:
 
-This is useful for user-perceived comparison, especially when demonstrating the impact of warmup and browser reuse.
+```text
+Backend running at http://localhost:3000
+```
 
-### WebView metrics
+> Use `npm start`, not `npm run dev`, unless you install `nodemon` yourself.
 
-`WebViewScreen` captures:
+---
 
-- progress updates from `WebChromeClient`,
-- total load timing from `onPageStarted` to `onPageFinished`,
-- `DOMContentLoaded` timing,
-- `loadEventEnd`,
-- `first-contentful-paint` through `evaluateJavascript(...)` and the Performance API.
+## Running the Android app
 
-This gives richer page-level timing inside WebView, but it also shows the burden of owning the embedded web surface yourself.
+1. Start the web server.
+2. Open the Android project in Android Studio.
+3. Run the app on emulator or device.
 
-### Important metric takeaway
+### Emulator URL
 
-The key message is not that both numbers are directly identical. The important message is:
+Use this base URL inside the app:
 
-- **Custom Tabs reduce app-owned startup work**
-- **WebView exposes more internals because the app owns more of the web runtime**
+```text
+http://10.0.2.2:3000
+```
 
-That is a useful distinction to highlight in an article or presentation.
+Because:
+- `localhost` inside Android emulator points to the emulator itself
+- `10.0.2.2` points to your host machine
 
-## Custom Tabs vs WebView: Pros and Cons
+### Physical device
 
-| Topic | Custom Tabs | WebView |
-| --- | --- | --- |
-| Session reuse | Reuses real browser cookies and login state | Separate app-managed session unless you build and maintain it |
-| SSO and auth | Strong fit | Often fragile or discouraged for modern auth |
-| Security model | Benefits from browser updates and browser trust | More app responsibility, more places to misconfigure |
-| Performance | Strong startup characteristics with warmup and session reuse | Can be fast, but only after more tuning and lifecycle work |
-| UI control | Limited compared to full embed | Full in-app embedding and behavior control |
-| Browser features | Real browser engine behavior | Depends on WebView behavior and app setup |
-| External content trust | Better for third-party sites | Riskier if you embed arbitrary or sensitive third-party pages |
-| Offline/custom DOM control | Weak fit | Strong fit |
-| Development complexity | Lower | Higher |
-| Maintenance burden | Lower | Higher |
+For a real phone, use your computer's local network IP, for example:
 
-### Custom Tabs pros
+```text
+http://192.168.1.5:3000
+```
 
-- Shared browser cookies and session state
-- Better fit for login, payments, help pages, and external content
-- Faster launch potential with warmup and `mayLaunchUrl(...)`
-- Lower security and compatibility burden for the app team
-- Less app code needed to behave like a browser
+Make sure both devices are on the same network.
 
-### Custom Tabs cons
+---
 
-- Less control over page UI
-- Cannot fully inject and own every browser behavior like a custom embedded surface
-- Depends on installed browser support
-- Deep in-page customization is limited
+## Suggested test flow
 
-### WebView pros
+### WebView test
+1. Start the app
+2. Keep URL as `http://10.0.2.2:3000`
+3. Tap **Login with WebView**
+4. Login using `demo@sso.com / password123`
+5. Observe:
+   - bridge toast on Android
+   - login success toast
+   - session card update in app UI
 
-- Full embed inside app UI
-- Complete control over surrounding chrome and navigation model
-- Useful for internal tools, controlled web apps, and tightly integrated hybrid flows
-- Can persist custom state exactly the way the app wants
+### Custom Tabs test
+1. Return to home screen
+2. Tap **Login with Custom Tabs**
+3. Sign in using the same page in browser UI
+4. Observe browser-based login behavior
+5. Compare user experience with WebView
 
-### WebView cons
+---
 
-- App owns more security, compatibility, cookies, storage, and lifecycle risk
-- More work to make auth flows robust
-- More work to make performance feel good
-- More opportunities for blank pages, redirect issues, storage issues, and JS compatibility problems
-- Easy to misuse for flows that should stay in a trusted browser
+## Build verification
 
-## Real Use Cases: When to Use What
+Android compile check used in this project:
 
-### Use Custom Tabs when
+```bash
+cd /Users/shukugup/personal/AndroidCustomTabs
+./gradlew :app:compileDebugKotlin
+```
 
-- opening SSO or OAuth login
-- opening external articles, documentation, support pages, or blogs
-- launching payment or checkout pages
-- showing terms, privacy, help center, or knowledge base content
-- opening partner or third-party web experiences
-- you want users to benefit from their existing browser login state
-- you want browser-grade security behavior with minimal app-side complexity
+At the moment, compilation succeeds.
 
-### Do not use Custom Tabs when
+---
 
-- the experience must be deeply embedded as a component of your screen
-- you need tight control over every navigation event and page-level UI behavior
-- the content is essentially part of your app shell rather than a destination
-- you need advanced bidirectional JS/native integration for the whole flow
+## Notes
 
-### Use WebView when
+- This project is a demo, not a production auth implementation.
+- The web login is intentionally simple and local.
+- The Custom Tabs path is the recommended conceptual direction for real SSO.
+- The WebView path exists to compare behavior and demonstrate JavaScript bridge handling.
 
-- the web content is effectively part of your app product
-- you control the content and can design for embedding
-- you need custom DOM/native bridging
-- you need highly customized layout around the web surface
-- you are building a hybrid app module or internal embedded workflow
+---
 
-### Do not use WebView when
+## Future improvements
 
-- the page is a third-party login or SSO flow
-- the site expects normal browser trust and cookie sharing
-- the content is mostly just an external website
-- you do not want to own long-term security and compatibility maintenance
+Possible next steps:
 
-## How to Run and Test This Demo
-
-1. Launch the app.
-2. Enter a URL such as a login page, article page, or documentation page.
-3. Open it with **Custom Tabs** first.
-4. Open the same URL with **WebView** next.
-5. Compare startup feel, login reuse, page rendering behavior, and timing toasts.
-
-### Suggested scenarios to demonstrate
-
-- Open a site where your browser is already logged in.
-- Try a multi-redirect login flow.
-- Test a content-heavy article page.
-- Compare first launch versus repeated launch.
-
-The strongest demo flow is:
-
-1. bind and warm the browser early,
-2. pre-hint the URL,
-3. launch through Custom Tabs,
-4. show that repeated launches feel more natural and more "already there" than WebView.
-
-## Implementation Notes From This Codebase
-
-This codebase already highlights several practical engineering points:
-
-- `CustomTabsPerformanceManager` is the right abstraction for binding, warmup, session creation, and timing.
-- `prepareUrl(...)` is a good place to centralize speculative loading.
-- `WebViewScreen` clearly shows the extra configuration burden of WebView: cookies, storage, JS, progress handling, load timing, and state retention.
-- The side-by-side home screen makes the tradeoff visible without needing a slide deck.
-
-There are also a few important caveats worth mentioning in an article:
-
-- The Custom Tabs timings are useful demo metrics, but they are still high-level browser callback timings, not full page internals.
-- The WebView path uses broad compatibility settings such as third-party cookies, mixed content compatibility mode, and a desktop-like user agent. That is useful for demos, but production apps should review each of those choices carefully.
-- This sample is best framed as a **comparison and learning project**, not as a final hardened production browser container.
-
-That framing will make the article technically honest while still keeping Custom Tabs as the recommended default.
-
-## Conclusion
-
-If the content is truly web content, start with **Custom Tabs**.
-
-They give Android apps the best blend of:
-
-- native feel,
-- browser trust,
-- shared login state,
-- strong SSO behavior,
-- lower app complexity,
-- better startup potential through warmup and prefetch hints.
-
-Use WebView only when you genuinely need to own the embedded web experience end to end.
-
-That is the main lesson this project demonstrates: **Custom Tabs are not just a nicer browser handoff. They are often the correct product and engineering choice.**
+- complete redirect-based Custom Tabs login return flow
+- add real OAuth/SSO provider simulation
+- persist Android-side session more formally
+- add logout redirect handling for browser session
+- improve Custom Tabs callback/deep link round-trip metrics
