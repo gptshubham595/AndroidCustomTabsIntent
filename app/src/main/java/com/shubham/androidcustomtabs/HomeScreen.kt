@@ -3,8 +3,10 @@ package com.shubham.androidcustomtabs
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,22 +15,44 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Architecture
+import androidx.compose.material.icons.filled.CompareArrows
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.OpenInBrowser
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Terminal
+import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -39,6 +63,20 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
+private val Background = Color(0xFFF8F9FA)
+private val SurfaceLow = Color(0xFFF3F4F5)
+private val SurfaceCard = Color(0xFFFFFFFF)
+private val SurfaceMuted = Color(0xFFEDEEEF)
+private val TextPrimary = Color(0xFF191C1D)
+private val TextSecondary = Color(0xFF586676)
+private val TextMuted = Color(0xFF727783)
+private val Primary = Color(0xFF005FB8)
+private val PrimaryContainer = Color(0xFFD6E3FF)
+private val TertiaryFixed = Color(0xFFFFDBCB)
+private val TertiaryFixedText = Color(0xFF341100)
+private val OutlineSoft = Color(0x1F727783)
+private val ErrorSoft = Color(0xFFB91C1C)
 
 @Composable
 fun HomeScreen(
@@ -53,288 +91,382 @@ fun HomeScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF030712))
+            .background(Background)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 28.dp, vertical = 36.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "SSO",
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.W100,
-                fontSize = 11.sp,
-                letterSpacing = 8.sp,
-                color = Color(0xFF38BDF8),
-                textAlign = TextAlign.Center
-            )
+        Column(modifier = Modifier.fillMaxSize()) {
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    start = 24.dp,
+                    end = 24.dp,
+                    top = 24.dp,
+                    bottom = 140.dp
+                ),
+                verticalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                item {
+                    EditorialHeader()
+                }
 
-            Spacer(modifier = Modifier.height(6.dp))
+                item {
+                    if (session != null) {
+                        SessionCard(session = session, onClearSession = onClearSession)
+                    }
+                }
 
-            Text(
-                text = "Login Demo",
-                fontFamily = FontFamily.Serif,
-                fontWeight = FontWeight.Bold,
-                fontSize = 42.sp,
-                color = Color.White,
-                letterSpacing = (-1).sp
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Compare browser-based Custom Tabs against embedded WebView auth",
-                fontFamily = FontFamily.Monospace,
-                fontSize = 12.sp,
-                color = Color(0xFF94A3B8),
-                letterSpacing = 1.sp,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            Text(
-                text = "For real SSO, prefer Custom Tabs because the browser keeps cookies, saved accounts, and stronger security boundaries.",
-                fontFamily = FontFamily.Monospace,
-                fontSize = 11.sp,
-                lineHeight = 18.sp,
-                color = Color(0xFF64748B),
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(28.dp))
-
-            if (session != null) {
-                SessionCard(session = session, onClearSession = onClearSession)
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-
-            OutlinedTextField(
-                value = url,
-                onValueChange = onUrlChange,
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = {
-                    Text(
-                        "http://10.0.2.2:3000",
-                        fontFamily = FontFamily.Monospace,
-                        color = Color(0xFF475569),
-                        fontSize = 14.sp
+                item {
+                    EndpointInput(
+                        url = url,
+                        onUrlChange = onUrlChange,
+                        errorMessage = errorMessage,
+                        onGo = onCustomTabsClick
                     )
-                },
-                textStyle = TextStyle(
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 14.sp,
-                    color = Color.White
-                ),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Uri,
-                    imeAction = ImeAction.Go
-                ),
-                keyboardActions = KeyboardActions(onGo = { onCustomTabsClick() }),
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF38BDF8),
-                    unfocusedBorderColor = Color(0xFF1E293B),
-                    cursorColor = Color(0xFF38BDF8),
-                    focusedContainerColor = Color(0xFF0F172A),
-                    unfocusedContainerColor = Color(0xFF0F172A)
-                )
-            )
+                }
 
-            Text(
-                text = "Use 10.0.2.2 for the Android emulator to reach your local Node server.",
-                fontFamily = FontFamily.Monospace,
-                fontSize = 10.sp,
-                color = Color(0xFF475569),
-                modifier = Modifier.padding(top = 8.dp)
-            )
-
-            AnimatedVisibility(
-                visible = errorMessage.isNotEmpty(),
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                Text(
-                    text = errorMessage,
-                    color = Color(0xFFFDA4AF),
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 11.sp,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            Button(
-                onClick = onCustomTabsClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF22C55E),
-                    contentColor = Color(0xFF04130A)
-                )
-            ) {
-                Text(
-                    text = "Login with Custom Tabs",
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    letterSpacing = 0.5.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = "recommended for SSO · browser cookies · account chooser reuse",
-                fontFamily = FontFamily.Monospace,
-                fontSize = 10.sp,
-                color = Color(0xFF475569),
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            OutlinedButton(
-                onClick = onWebViewClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = RoundedCornerShape(12.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF38BDF8)),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF38BDF8))
-            ) {
-                Text(
-                    text = "Login with WebView",
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    letterSpacing = 0.5.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = "demo/legacy path · in-app JS bridge · isolated auth handling",
-                fontFamily = FontFamily.Monospace,
-                fontSize = 10.sp,
-                color = Color(0xFF475569),
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(40.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                InfoCard(
-                    modifier = Modifier.weight(1f),
-                    title = "Custom Tabs",
-                    accentColor = Color(0xFF22C55E),
-                    points = listOf("Shared browser session", "Great for SSO/OAuth", "Less auth surface in app")
-                )
-                InfoCard(
-                    modifier = Modifier.weight(1f),
-                    title = "WebView",
-                    accentColor = Color(0xFF38BDF8),
-                    points = listOf("Embedded UX", "Requires JS bridge", "You own more security work")
-                )
+                item {
+                    ArchitectureCard(
+                        onCustomTabsClick = onCustomTabsClick,
+                        onWebViewClick = onWebViewClick
+                    )
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun EditorialHeader() {
+    Column {
+        Surface(
+            color = TertiaryFixed,
+            shape = RoundedCornerShape(50),
+            modifier = Modifier
+                .clip(RoundedCornerShape(50))
+        ) {
+            Text(
+                text = "Architecture Lab",
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.5.sp,
+                color = TertiaryFixedText
+            )
+        }
+
+        Spacer(modifier = Modifier.height(18.dp))
+
+        Text(
+            text = "CustomTabs vs WebView login sso",
+            fontSize = 36.sp,
+            lineHeight = 38.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = TextPrimary
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "Select the implementation architecture for your authentication flow.",
+            fontSize = 14.sp,
+            color = TextSecondary
+        )
+    }
+}
+
+@Composable
+private fun EndpointInput(
+    url: String,
+    onUrlChange: (String) -> Unit,
+    errorMessage: String,
+    onGo: () -> Unit
+) {
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = Icons.Default.Link,
+                contentDescription = null,
+                tint = TextSecondary,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "Backend Endpoint",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.2.sp,
+                color = TextSecondary
+            )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        OutlinedTextField(
+            value = url,
+            onValueChange = onUrlChange,
+            modifier = Modifier.fillMaxWidth(),
+            textStyle = TextStyle(
+                fontFamily = FontFamily.Monospace,
+                color = TextPrimary,
+                fontSize = 14.sp
+            ),
+            placeholder = {
+                Text(
+                    text = "http://10.0.2.2:3000",
+                    fontFamily = FontFamily.Monospace,
+                    color = TextMuted
+                )
+            },
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Uri,
+                imeAction = ImeAction.Go
+            ),
+            keyboardActions = KeyboardActions(onGo = { onGo() }),
+            shape = RoundedCornerShape(16.dp),
+            singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedContainerColor = SurfaceCard,
+                unfocusedContainerColor = SurfaceCard,
+                focusedBorderColor = Primary,
+                unfocusedBorderColor = OutlineSoft,
+                cursorColor = Primary
+            )
+        )
+
+        AnimatedVisibility(
+            visible = errorMessage.isNotEmpty(),
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            Text(
+                text = errorMessage,
+                color = ErrorSoft,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ArchitectureCard(
+    onCustomTabsClick: () -> Unit,
+    onWebViewClick: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        OptionCard(
+            recommended = true,
+            title = "Login with Custom Tabs",
+            subtitle = "Recommended for SSO • browser cookies • account chooser reuse",
+            icon = { Icon(Icons.Default.OpenInBrowser, contentDescription = null, tint = Primary, modifier = Modifier.size(30.dp)) },
+            bullets = listOf(
+                "Shared browser session",
+                "Great for SSO/OAuth",
+                "Less auth surface in app"
+            ),
+            onClick = onCustomTabsClick
+        )
+
+        OptionCard(
+            recommended = false,
+            title = "Login with WebView",
+            subtitle = "Demo/legacy path • in-app JS bridge • isolated auth handling",
+            icon = { Icon(Icons.Default.Terminal, contentDescription = null, tint = TextMuted, modifier = Modifier.size(30.dp)) },
+            bullets = listOf(
+                "Embedded UX",
+                "Requires JS bridge",
+                "You own more security work"
+            ),
+            onClick = onWebViewClick
+        )
+    }
+}
+
+@Composable
+private fun OptionCard(
+    recommended: Boolean,
+    title: String,
+    subtitle: String,
+    icon: @Composable () -> Unit,
+    bullets: List<String>,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (recommended) SurfaceCard else SurfaceLow
+        ),
+        border = BorderStroke(
+            1.dp,
+            if (recommended) Primary.copy(alpha = 0.1f) else Color.Transparent
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (recommended) 6.dp else 0.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            if (recommended) {
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .clip(RoundedCornerShape(bottomStart = 16.dp))
+                        .background(PrimaryContainer)
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Verified,
+                        contentDescription = null,
+                        tint = Primary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "RECOMMENDED",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Primary
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(if (recommended) PrimaryContainer.copy(alpha = 0.3f) else SurfaceMuted),
+                    contentAlignment = Alignment.Center
+                ) {
+                    icon()
+                }
+
+                Spacer(modifier = Modifier.width(18.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = title,
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = TextPrimary
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = subtitle,
+                        fontSize = 12.sp,
+                        color = TextSecondary
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    bullets.forEach { bullet ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(if (recommended) Primary else TextMuted)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = bullet,
+                                fontSize = 12.sp,
+                                color = TextSecondary
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SchemaNode(
+    modifier: Modifier = Modifier,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String
+) {
+    Column(modifier = modifier) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(108.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(
+                    brush = Brush.linearGradient(
+                        listOf(Color(0xFFF0F4F8), Color(0xFFE3EAF3))
+                    )
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Primary.copy(alpha = 0.4f),
+                modifier = Modifier.size(42.dp)
+            )
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = title,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            letterSpacing = 1.sp,
+            color = TextSecondary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 
 @Composable
 private fun SessionCard(session: DemoSession, onClearSession: () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFF0F172A))
-            .border(1.dp, Color(0xFF22C55E).copy(alpha = 0.4f), RoundedCornerShape(16.dp))
-            .padding(16.dp)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = SurfaceCard),
+        border = BorderStroke(1.dp, Primary.copy(alpha = 0.15f))
     ) {
-        Text(
-            text = "ACTIVE SESSION",
-            fontFamily = FontFamily.Monospace,
-            fontSize = 10.sp,
-            letterSpacing = 2.sp,
-            color = Color(0xFF86EFAC)
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            text = session.name,
-            fontFamily = FontFamily.Monospace,
-            fontWeight = FontWeight.Bold,
-            fontSize = 20.sp,
-            color = Color.White
-        )
-        Text(
-            text = session.email,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 12.sp,
-            color = Color(0xFFCBD5E1)
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = "source: ${session.source} · via ${session.transport}",
-            fontFamily = FontFamily.Monospace,
-            fontSize = 11.sp,
-            color = Color(0xFF94A3B8)
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        OutlinedButton(onClick = onClearSession) {
-            Text("Clear local session")
-        }
-    }
-}
-
-@Composable
-fun InfoCard(
-    modifier: Modifier = Modifier,
-    title: String,
-    accentColor: Color,
-    points: List<String>
-) {
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFF111827))
-            .border(1.dp, accentColor.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
-            .padding(16.dp)
-    ) {
-        Text(
-            text = title,
-            fontFamily = FontFamily.Monospace,
-            fontWeight = FontWeight.Bold,
-            fontSize = 12.sp,
-            color = accentColor
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        points.forEach { point ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(4.dp)
-                        .background(accentColor.copy(alpha = 0.6f), RoundedCornerShape(2.dp))
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = point,
-                    fontFamily = FontFamily.Monospace,
-                    fontSize = 11.sp,
-                    color = Color(0xFF94A3B8)
-                )
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = "ACTIVE SESSION",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.4.sp,
+                color = Primary
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = session.name,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = TextPrimary
+            )
+            Text(
+                text = session.email,
+                fontSize = 13.sp,
+                color = TextSecondary
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "source: ${session.source} · via ${session.transport}",
+                fontSize = 12.sp,
+                color = TextMuted
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+            OutlinedButton(
+                onClick = onClearSession,
+                border = BorderStroke(1.dp, Primary.copy(alpha = 0.18f))
+            ) {
+                Text("Clear local session", color = Primary)
             }
-            Spacer(modifier = Modifier.height(4.dp))
         }
     }
 }
@@ -342,13 +474,15 @@ fun InfoCard(
 @Preview(showBackground = true)
 @Composable
 private fun HomeScreenPreview() {
-    HomeScreen(
-        url = "http://10.0.2.2:3000",
-        onUrlChange = {},
-        errorMessage = "",
-        session = DemoSession("Demo User", "demo@sso.com", "login", "webview-bridge"),
-        onCustomTabsClick = {},
-        onWebViewClick = {},
-        onClearSession = {}
-    )
+    MaterialTheme {
+        HomeScreen(
+            url = "http://10.0.2.2:3000",
+            onUrlChange = {},
+            errorMessage = "",
+            session = DemoSession("Demo User", "demo@sso.com", "login", "deep-link"),
+            onCustomTabsClick = {},
+            onWebViewClick = {},
+            onClearSession = {}
+        )
+    }
 }

@@ -16,7 +16,6 @@ class CustomTabsPerformanceManager(private val context: Context) {
     private var serviceConnection: CustomTabsServiceConnection? = null
     private var browserPackage: String? = null
     private var launchStartTimeMs: Long = 0L
-    private var launchUrl: String? = null
     private var navStartedAtMs: Long? = null
     private var firstPaintAtMs: Long? = null
 
@@ -39,6 +38,7 @@ class CustomTabsPerformanceManager(private val context: Context) {
             override fun onServiceDisconnected(name: ComponentName?) {
                 customTabsClient = null
                 customTabsSession = null
+                serviceConnection = null
             }
         }
 
@@ -62,7 +62,9 @@ class CustomTabsPerformanceManager(private val context: Context) {
                         }
                     }
 
-                    CustomTabsCallback.NAVIGATION_FINISHED -> {
+                    CustomTabsCallback.NAVIGATION_FINISHED,
+                    CustomTabsCallback.NAVIGATION_FAILED,
+                    CustomTabsCallback.NAVIGATION_ABORTED -> {
                         if (launchStartTimeMs > 0L) {
                             val visibleMs = firstPaintAtMs ?: (now - launchStartTimeMs)
                             val navigationMs = navStartedAtMs
@@ -72,13 +74,10 @@ class CustomTabsPerformanceManager(private val context: Context) {
                             val fullPart = "full ${fullMs}ms"
                             context.toast(
                                 "Custom Tabs metrics captured\n" +
-                                        "$navPart · $paintPart · $fullPart\n" +
-                                        "Shared browser process/cookies reduce app-side startup work."
+                                    "$navPart · $paintPart · $fullPart\n" +
+                                    "Shared browser state reduces app-owned auth and startup work."
                             )
-                            launchStartTimeMs = 0L
-                            launchUrl = null
-                            navStartedAtMs = null
-                            firstPaintAtMs = null
+                            resetMetrics()
                         }
                     }
                 }
@@ -97,9 +96,16 @@ class CustomTabsPerformanceManager(private val context: Context) {
 
     fun getPackageName(): String? = browserPackage
 
-    fun markLaunchStarted(url: String) {
+    fun isSupported(): Boolean = browserPackage != null
+
+    fun markLaunchStarted() {
         launchStartTimeMs = SystemClock.elapsedRealtime()
-        launchUrl = url
+        navStartedAtMs = null
+        firstPaintAtMs = null
+    }
+
+    private fun resetMetrics() {
+        launchStartTimeMs = 0L
         navStartedAtMs = null
         firstPaintAtMs = null
     }
@@ -111,7 +117,6 @@ class CustomTabsPerformanceManager(private val context: Context) {
         serviceConnection = null
         customTabsClient = null
         customTabsSession = null
-        navStartedAtMs = null
-        firstPaintAtMs = null
+        resetMetrics()
     }
 }

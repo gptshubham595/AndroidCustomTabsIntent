@@ -1,9 +1,6 @@
 package com.shubham.androidcustomtabs
 
 import android.content.Context
-import android.content.Intent
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.browser.customtabs.CustomTabColorSchemeParams
 import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.runtime.Composable
@@ -42,15 +39,6 @@ fun BrowserDemoApp() {
     var currentSession by remember { mutableStateOf<DemoSession?>(null) }
 
     val customTabsManager = remember(context) { CustomTabsPerformanceManager(context) }
-    val customTabsLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) {
-        val session = extractSessionFromUri(it.data?.data)
-        if (session != null) {
-            currentSession = session
-            errorMessage = ""
-        }
-    }
 
     DisposableEffect(customTabsManager) {
         customTabsManager.bind()
@@ -85,8 +73,7 @@ fun BrowserDemoApp() {
                     keyboardController = keyboardController,
                     context = context,
                     url = buildCustomTabsLoginUrl(baseUrl),
-                    performanceManager = customTabsManager,
-                    launcher = customTabsLauncher
+                    performanceManager = customTabsManager
                 )
                 errorMessage = result ?: ""
             },
@@ -116,53 +103,52 @@ fun openWithCustomTabs(
     keyboardController: SoftwareKeyboardController?,
     context: Context,
     url: String,
-    performanceManager: CustomTabsPerformanceManager,
-    launcher: androidx.activity.result.ActivityResultLauncher<Intent>
+    performanceManager: CustomTabsPerformanceManager
 ): String? {
     val finalUrl = normalizeUrl(url)
     val targetUri = finalUrl.toUri()
     return try {
+        if (!performanceManager.isSupported()) {
+            return "No Custom Tabs supporting browser found on this device."
+        }
+
         performanceManager.prepareUrl(targetUri)
 
-        val builder = CustomTabsIntent.Builder(performanceManager.getSession())
-        builder.setShowTitle(true)
         val primaryColor = ContextCompat.getColor(context, R.color.teal_200)
-        builder.setToolbarColor(primaryColor)
         val secondaryColor = ContextCompat.getColor(context, R.color.purple_200)
-        builder.setSecondaryToolbarColor(secondaryColor)
-        builder.setUrlBarHidingEnabled(true)
-        builder.setShareState(CustomTabsIntent.SHARE_STATE_ON)
-        builder.setInstantAppsEnabled(false)
-        builder.setStartAnimations(
-            context,
-            android.R.anim.slide_in_left,
-            android.R.anim.slide_out_right
-        )
-        builder.setExitAnimations(
-            context,
-            android.R.anim.slide_in_left,
-            android.R.anim.slide_out_right
-        )
-
-        val params = CustomTabColorSchemeParams.Builder()
+        val colorParams = CustomTabColorSchemeParams.Builder()
             .setToolbarColor(primaryColor)
             .build()
 
-        builder.setDefaultColorSchemeParams(params)
-        builder.setColorScheme(CustomTabsIntent.COLOR_SCHEME_SYSTEM)
+        val builder = CustomTabsIntent.Builder(performanceManager.getSession())
+            .setShowTitle(true)
+            .setDefaultColorSchemeParams(colorParams)
+            .setColorScheme(CustomTabsIntent.COLOR_SCHEME_SYSTEM)
+            .setUrlBarHidingEnabled(true)
+            .setShareState(CustomTabsIntent.SHARE_STATE_ON)
+            .setInstantAppsEnabled(false)
+            .setStartAnimations(
+                context,
+                android.R.anim.slide_in_left,
+                android.R.anim.slide_out_right
+            )
+            .setExitAnimations(
+                context,
+                android.R.anim.slide_in_left,
+                android.R.anim.slide_out_right
+            )
 
         val customTabsIntent = builder.build().apply {
             intent.`package` = performanceManager.getPackageName()
-            intent.addFlags(Intent.FLAG_ACTIVITY_NO_HISTORY)
-            intent.data = targetUri
+            intent.putExtra(CustomTabsIntent.EXTRA_ENABLE_URLBAR_HIDING, true)
         }
 
-        performanceManager.markLaunchStarted(finalUrl)
-        launcher.launch(customTabsIntent.intent)
+        performanceManager.markLaunchStarted()
+        customTabsIntent.launchUrl(context, targetUri)
         keyboardController?.hide()
 
         context.toast(
-            "Launching SSO demo with Custom Tabs. After success, the web page will deep-link back into the app."
+            "Launching SSO demo with Custom Tabs. Browser session stays outside the app and returns via deep link."
         )
         null
     } catch (e: Exception) {
